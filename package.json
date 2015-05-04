@@ -3,13 +3,14 @@
   "description": "HomeKit support for the impatient",
   "version": "0.0.0",
   "scripts": {
-    "start": "node app.js"
+    "start": "./node_modules/.bin/forever app.js"
   },
   "repository": {
     "type": "git",
     "url": "git://github.com/nfarina/homebridge.git"
   },
   "dependencies": {
+    "forever": "0.14.x",
     "request": "2.49.x",
     "node-persist": "0.0.x",
     "xmldoc": "0.1.x",

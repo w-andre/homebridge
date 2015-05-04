@@ -141,3 +141,11 @@ function createUsername(str) {
 }
 
 loadAccessories();
+
+// Embarassingly, we need to periodically restart the server to keep everything running, since iOS 8.3.
+function restartServer() {
+  console.log("Automatically exiting server; expecting a restart via `forever` script.")
+  process.exit(1);
+}
+
+setTimeout(restartServer, 1000 * 60 * 60 * 12);

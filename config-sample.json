@@ -21,7 +21,19 @@
             "name": "Domoticz",
             "server": "127.0.0.1",
             "port": "8005"
-        }
+        },
+		{
+			"platform": "Symcon",
+			"name": "Symcon",
+			"rpcClientOptions": {
+				"port": 3777,
+				"host": "127.0.0.1",
+				"path": "/api/",
+				"login": "username",
+				"hash": "password hash (http://www.base64encode.org/)",
+				"strict": true
+			}
+		}
     ],
 
     "accessories": [

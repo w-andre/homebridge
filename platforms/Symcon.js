@@ -78,7 +78,7 @@ SymconPlatform.prototype = {
 								var instanceConfig = typeof results[2] === 'object' ? results[2] : JSON.parse(results[2]);
 								var instance = new SymconAccessory(that.log, that.options.rpcClientOptions, instanceId, name, instance, instanceConfig);
 								
-								if (instance.commands.length > 0) //if (instance.instanceConfig.Unit == 0 || instance.instanceConfig.Unit == 2) {
+								if (instance.commands.length > 0) { //if (instance.instanceConfig.Unit == 0 || instance.instanceConfig.Unit == 2) {
 									foundAccessories.push(instance);
 									that.log("new instance found: " + results[0]);
 								}

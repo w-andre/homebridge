@@ -20,8 +20,8 @@ SymconPlatform.prototype = {
 				function (waterfallCallback) {
 					that.client.call({
 						"jsonrpc" : "2.0",
-						"method" : "IPS_GetInstanceListByModuleID",
-						"params" : ['{2D871359-14D8-493F-9B01-26432E3A710F}'],
+						"method" : "IPS_GetInstanceList", //"IPS_GetInstanceListByModuleID",
+						"params" : [], //['{2D871359-14D8-493F-9B01-26432E3A710F}'],
 						"id" : 0
 					},
 					function (err, res) {
@@ -78,7 +78,7 @@ SymconPlatform.prototype = {
 								var instanceConfig = typeof results[2] === 'object' ? results[2] : JSON.parse(results[2]);
 								var instance = new SymconAccessory(that.log, that.options.rpcClientOptions, instanceId, name, instance, instanceConfig);
 								
-								if (instance.instanceConfig.Unit == 0 || instance.instanceConfig.Unit == 2) {
+								if (instance.commands.length > 0) //if (instance.instanceConfig.Unit == 0 || instance.instanceConfig.Unit == 2) {
 									foundAccessories.push(instance);
 									that.log("new instance found: " + results[0]);
 								}

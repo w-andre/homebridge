@@ -125,6 +125,13 @@ function SymconAccessory(log, rpcClientOptions, instanceId, name, instance, inst
 					break;
 			}
 			break;
+		case '{C81E019F-6341-4748-8644-1C29D99B813E}': // LCN Shutter
+			this.writeLogEntry('adding commands for LCN Shutter...');
+			this.sType = types.GARAGE_DOOR_OPENER_STYPE;
+			this.commands.push('SetTargetDoorState');
+			this.commands.push('GetCurrentDoorState');
+			this.commands.push('GetObstructionDetected');
+			break;
 		case '{D62B95D3-0C5E-406E-B1D9-8D102E50F64B}': // EIB Group
 			switch(this.instanceConfig.GroupFunction) {
 				case 'Switch':
@@ -132,6 +139,8 @@ function SymconAccessory(log, rpcClientOptions, instanceId, name, instance, inst
 					this.commands.push('SetPowerState');
 					break;
 			}
+			break;
+		case '{24A9D68D-7B98-4D74-9BAE-3645D435A9EF}': // EIB Shutter
 			break;
 		case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
 			if (this.instanceConfig.NodeClasses.indexOf(67) != -1) { // THERMOSTAT_SETPOINT
@@ -382,6 +391,65 @@ SymconAccessory.prototype = {
 		}
 	},
 	
+	setTargetDoorState: function(value) {
+		var method;
+		var params;
+		var openDoor = value === 0; // value '0' --> open, value '1' --> close
+		
+		switch (this.instance.ModuleInfo.ModuleID) {
+			case '{C81E019F-6341-4748-8644-1C29D99B813E}': // LCN Shutter
+				method = openDoor ? "LCN_ShutterMoveUp" : "LCN_ShutterMoveDown";
+				params = [this.instanceId];
+				break;
+			case '{24A9D68D-7B98-4D74-9BAE-3645D435A9EF}': // EIB Shutter
+				method = "EIB_DriveMove";
+				params = [this.instanceId, !openDoor];
+				break;
+			default:
+				return;
+		}
+		
+		this.callRpcMethod(method, params);
+	},
+	
+	getTargetDoorState: function(callback) {
+		var that = this;
+		
+		switch (this.instance.ModuleInfo.ModuleID) {
+			case '{C81E019F-6341-4748-8644-1C29D99B813E}': // LCN Shutter
+				this.getCurrentDoorState(callback);
+				break;
+			default:
+				return;
+		}
+	},
+	
+	getCurrentDoorState: function(callback) {
+		var that = this;
+		
+		switch (this.instance.ModuleInfo.ModuleID) {
+			case '{C81E019F-6341-4748-8644-1C29D99B813E}': // LCN Shutter
+				async.waterfall(
+					[
+						function (waterfallCallback) {
+							that.callRpcMethod('IPS_GetObjectIDByIdent', ['Action', that.instanceId], waterfallCallback);
+						},
+						function (res, waterfallCallback) {
+							that.writeLogEntry('Result: ' + JSON.stringify(res));
+							that.callRpcMethod('GetValueInteger', [res.result], waterfallCallback);
+						}
+					],
+					function(err, res) {
+						that.writeLogEntry('Result: ' + JSON.stringify(res));
+						callback(res.result === 0 ? 0 : 1);
+					}
+				);
+				break;
+			default:
+				return;
+		}
+	},
+	
 	callRpcMethod : function(method, params, callback) {
 		this.writeLogEntry("Calling JSON-RPC method " + method + " with params " + JSON.stringify(params));
 
@@ -617,6 +685,63 @@ SymconAccessory.prototype = {
 				supportEvents: false,
 				supportBonjour: false,
 				manfDescription: "Unit",
+			});
+		}
+		
+		if (this.commands.indexOf('SetTargetDoorState') != -1) {
+			this.writeLogEntry('adding control characteristic TARGET_DOORSTATE_CTYPE...');
+			cTypes.push({
+				cType : types.TARGET_DOORSTATE_CTYPE,
+				onUpdate : function(value) { 
+					that.setTargetDoorState(value);
+				},
+				onRead: function(callback) {
+					that.getTargetDoorState(callback);
+				},
+				perms: ["pr","pw","ev"],
+				format: "int",
+				initialValue: 0,
+				supportEvents: false,
+				supportBonjour: false,
+				manfDescription: "Target door state",
+				designedMinValue: 0,
+				designedMaxValue: 1,
+				designedMinStep: 1,
+				designedMaxLength: 1
+			});
+		}
+		
+		if (this.commands.indexOf('GetCurrentDoorState') != -1) {
+			this.writeLogEntry('adding control characteristic CURRENT_DOOR_STATE_CTYPE...');
+			cTypes.push({
+				cType: types.CURRENT_DOOR_STATE_CTYPE,
+				onUpdate: function(value) { that.writeLogEntry("onUpdate called for CURRENT_DOOR_STATE_CTYPE with value: " + value); },
+				onRead : function(callback) { that.getCurrentDoorState(callback); },
+				perms: ["pr","ev"],
+				format: "int",
+				initialValue: 0,
+				supportEvents: false,
+				supportBonjour: false,
+				manfDescription: "Current door state",
+				designedMinValue: 0,
+				designedMaxValue: 4,
+				designedMinStep: 1,
+				designedMaxLength: 1    
+			});
+		}
+		
+		if (this.commands.indexOf('GetObstructionDetected') != -1) {
+			this.writeLogEntry('adding control characteristic OBSTRUCTION_DETECTED_CTYPE...');
+			cTypes.push({
+				cType: types.OBSTRUCTION_DETECTED_CTYPE,
+				onUpdate: function(value) { that.writeLogEntry("onUpdate called for OBSTRUCTION_DETECTED_CTYPE with value: " + value); },
+				onRead : function(callback) { that.writeLogEntry("onRead called for OBSTRUCTION_DETECTED_CTYPE"); },
+				perms: ["pr","ev"],
+				format: "bool",
+				initialValue: false,
+				supportEvents: false,
+				supportBonjour: false,
+				manfDescription: "obstruction detected",
 			});
 		}
 

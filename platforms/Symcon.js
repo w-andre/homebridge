@@ -16,85 +16,86 @@ SymconPlatform.prototype = {
 		var that = this;
 		var foundAccessories = [];
 
-		async.waterfall([
+		async.waterfall(
+			[
 				function (waterfallCallback) {
-					that.client.call({
-						"jsonrpc" : "2.0",
-						"method" : "IPS_GetInstanceList", //"IPS_GetInstanceListByModuleID",
-						"params" : [], //['{2D871359-14D8-493F-9B01-26432E3A710F}'],
-						"id" : 0
-					},
-					function (err, res) {
-						waterfallCallback(null, err, res);
-					});
+					that.client.call(
+						{"jsonrpc" : "2.0", "method" : "IPS_GetInstanceList", "params" : [], "id" : 0},
+						function (err, res) {
+							waterfallCallback(null, err, res);
+						}
+					);
 				},
 				function (err, res, waterfallCallback) {
 					if (err) {
 						that.log("Error: " + JSON.stringify(err));
 						return;
 					}
-
-					async.each(res.result, function (instanceId, eachCallback) {
-
-						async.parallel([
-								function (parallelCallback) {
-									that.client.call({
-										"jsonrpc" : "2.0",
-										"method" : "IPS_GetName",
-										"params" : [instanceId],
-										"id" : 0
+					
+					async.each(
+						res.result,
+						function (instanceId, eachCallback) {
+							async.parallel(
+								[
+									function (parallelCallback) {
+										that.client.call(
+											{"jsonrpc" : "2.0", "method" : "IPS_GetName", "params" : [instanceId], "id" : 0},
+											function (err, res) {
+												parallelCallback(null, res.result);
+											}
+										);
 									},
-									function (err, res) {
-										parallelCallback(null, res.result);
-									});
-								},
-								function (parallelCallback) {
-									that.client.call({
-										"jsonrpc" : "2.0",
-										"method" : "IPS_GetInstance",
-										"params" : [instanceId],
-										"id" : 0
+									function (parallelCallback) {
+										that.client.call(
+											{"jsonrpc" : "2.0", "method" : "IPS_GetInstance", "params" : [instanceId], "id" : 0},
+											function (err, res) {
+												parallelCallback(null, res.result);
+											}
+										);
 									},
-									function (err, res) {
-										parallelCallback(null, res.result);
-									});
-								},
-								function (parallelCallback) {
-									that.client.call({
-										"jsonrpc" : "2.0",
-										"method" : "IPS_GetConfiguration",
-										"params" : [instanceId],
-										"id" : 0
-									},
-									function (err, res) {
-										parallelCallback(null, res.result);
-									});
+									function (parallelCallback) {
+										that.client.call(
+											{"jsonrpc" : "2.0", "method" : "IPS_GetConfiguration", "params" : [instanceId], "id" : 0},
+											function (err, res) {
+												parallelCallback(null, res.result);
+											}
+										);
+									}
+								],
+								function (err, results) {
+									var name = results[0];
+									var instance = typeof results[1] === 'object' ? results[1] : JSON.parse(results[1]);
+									var instanceConfig;
+									
+									if (results[2] === undefined)
+										instanceConfig = [];
+									else if (typeof results[2] === 'object')
+										instanceConfig = results[2];
+									else
+										instanceConfig = JSON.parse(results[2]);
+									
+									var instance = new SymconAccessory(that.log, that.options.rpcClientOptions, instanceId, name, instance, instanceConfig);
+									
+									if (instance.commands.length > 0 && instance.sType !== undefined) {
+										foundAccessories.push(instance);
+										that.log("new instance found: " + results[0]);
+									}
+									
+									eachCallback();
 								}
-							],
-							function (err, results) {
-								
-								var name = results[0];
-								var instance = typeof results[1] === 'object' ? results[1] : JSON.parse(results[1]);
-								var instanceConfig = typeof results[2] === 'object' ? results[2] : JSON.parse(results[2]);
-								var instance = new SymconAccessory(that.log, that.options.rpcClientOptions, instanceId, name, instance, instanceConfig);
-								
-								if (instance.commands.length > 0) { //if (instance.instanceConfig.Unit == 0 || instance.instanceConfig.Unit == 2) {
-									foundAccessories.push(instance);
-									that.log("new instance found: " + results[0]);
-								}
-								
-								eachCallback();
-						});
-					},
-					function (err) {
-						waterfallCallback(null);
-					});
+							);
+						},
+						function (err) {
+							waterfallCallback(null);
+						}
+					);
 				}
 			],
 			function (err, result) {
 				that.log(foundAccessories.length + " instances found");
 				callback(foundAccessories);
-		});
+			}
+		);
 	}
 }
 
@@ -114,19 +115,102 @@ function SymconAccessory(log, rpcClientOptions, instanceId, name, instance, inst
 			this.writeLogEntry('adding commands for LCN Unit (Type: ' + this.instanceConfig.Unit + ')...');
 			switch (this.instanceConfig.Unit) {
 				case 0: // output
+					this.sType = types.LIGHTBULB_STYPE;
 					this.commands.push('SetBrightness');
 					this.commands.push('SetPowerState');
 					break;
 				case 2: // relay
+					this.sType = types.SWITCH_STYPE;
 					this.commands.push('SetPowerState');
 					break;
+			}
+			break;
+		case '{D62B95D3-0C5E-406E-B1D9-8D102E50F64B}': // EIB Group
+			switch(this.instanceConfig.GroupFunction) {
+				case 'Switch':
+					this.sType = types.SWITCH_STYPE;
+					this.commands.push('SetPowerState');
+					break;
+			}
+			break;
+		case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
+			if (this.instanceConfig.NodeClasses.indexOf(67) != -1) { // THERMOSTAT_SETPOINT
+				this.writeLogEntry('adding commands for Z-Wave Thermostat...');
+				this.sType = types.THERMOSTAT_STYPE;
+				this.commands.push('SetTargetTemperature');
+				this.commands.push('GetCurrentTemperature');
+				this.commands.push('GetCurrentHeatingCoolingType');
+				this.commands.push('SetTargetHeatingCoolingType');
+			} else if (this.instanceConfig.NodeClasses.indexOf(38) != -1) { // SWITCH_MULTILEVEL
+				this.writeLogEntry('adding commands for Z-Wave multi-level switch...');
+				this.sType = types.LIGHTBULB_STYPE;
+				this.commands.push('SetBrightness');
+				this.commands.push('SetPowerState');
+			} else if (this.instanceConfig.NodeClasses.indexOf(37) != -1) { // SWITCH_BINARY
+				this.writeLogEntry('adding commands for Z-Wave binary switch...');
+				this.sType = types.SWITCH_STYPE;
+				this.commands.push('SetPowerState');
 			}
 			break;
 	}
 }
 
 SymconAccessory.prototype = {
+
+	getPowerState : function(callback) {
+		var that = this;
 		
+		switch (this.instance.ModuleInfo.ModuleID) {
+			case '{2D871359-14D8-493F-9B01-26432E3A710F}': // LCN Unit
+				switch (this.instanceConfig.Unit) {
+					case 0: // output
+					case 2: // relay
+						async.waterfall(
+							[
+								function (waterfallCallback) {
+									that.callRpcMethod('IPS_GetObjectIDByIdent', ['Status', that.instanceId], waterfallCallback);
+								},
+								function (res, waterfallCallback) {
+									that.writeLogEntry('Result: ' + JSON.stringify(res));
+									that.callRpcMethod('GetValueBoolean', [res.result], waterfallCallback);
+								}
+							],
+							function(err, res) {
+								that.writeLogEntry('Result: ' + JSON.stringify(res));
+								callback(res.result);
+							}
+						);
+						break;
+					default:
+						return;
+				}
+				break;
+			case '{D62B95D3-0C5E-406E-B1D9-8D102E50F64B}': // EIB Group
+				switch(this.instanceConfig.GroupFunction) {
+					case 'Switch':
+						async.waterfall(
+							[
+								function (waterfallCallback) {
+									that.callRpcMethod('IPS_GetObjectIDByIdent', ['Value', that.instanceId], waterfallCallback);
+								},
+								function (res, waterfallCallback) {
+									that.writeLogEntry('Result: ' + JSON.stringify(res));
+									that.callRpcMethod('GetValueBoolean', [res.result], waterfallCallback);
+								}
+							],
+							function(err, res) {
+								that.writeLogEntry('Result: ' + JSON.stringify(res));
+								callback(res.result);
+							}
+						);
+						break;
+				}
+				break;
+			default:
+				return;
+		}
+	},
+
 	setPowerState : function(value) {
 		
 		var method;
@@ -147,11 +231,55 @@ SymconAccessory.prototype = {
 						return;
 				}
 				break;
+			case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
+				method = 'ZW_SwitchMode';
+				params = [this.instanceId, value];
+				break;
+			case '{D62B95D3-0C5E-406E-B1D9-8D102E50F64B}': // EIB Group
+				switch(this.instanceConfig.GroupFunction) {
+					case 'Switch':
+						method = 'EIB_Switch';
+                        params = [this.instanceId, value];
+						break;
+				}
+				break;
 			default:
 				return;
 		}
 		
 		this.callRpcMethod(method, params);
+	},
+
+	getBrightness : function(callback) {
+		var that = this;
+		
+		switch (this.instance.ModuleInfo.ModuleID) {
+			case '{2D871359-14D8-493F-9B01-26432E3A710F}': // LCN Unit
+				switch (this.instanceConfig.Unit) {
+					case 0: // output
+						async.waterfall(
+							[
+								function (waterfallCallback) {
+									that.callRpcMethod('IPS_GetObjectIDByIdent', ['Intensity', that.instanceId], waterfallCallback);
+								},
+								function (res, waterfallCallback) {
+									that.writeLogEntry('Result: ' + JSON.stringify(res));
+									that.callRpcMethod('GetValueInteger', [res.result], waterfallCallback);
+								}
+							],
+							function(err, res) {
+								that.writeLogEntry('Result: ' + JSON.stringify(res));
+								callback(res.result);
+							}
+						);
+						break;
+					default:
+						return;
+				}
+				break;
+			default:
+				return;
+		}
 	},
 	
 	setBrightness : function(value) {
@@ -170,6 +298,10 @@ SymconAccessory.prototype = {
 						return;
 				}
 				break;
+			case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
+				method = 'ZW_DimSet';
+				params = [this.instanceId, value];
+				break;
 			default:
 				return;
 		}
@@ -177,7 +309,80 @@ SymconAccessory.prototype = {
 		this.callRpcMethod(method, params);
 	},
 	
-	callRpcMethod : function(method, params) {
+	getTargetTemperature: function(callback) {
+		var that = this;
+		
+		switch (this.instance.ModuleInfo.ModuleID) {
+			case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
+				async.waterfall(
+					[
+						function (waterfallCallback) {
+							that.callRpcMethod('IPS_GetObjectIDByIdent', ['ThermostatSetPoint1', that.instanceId], waterfallCallback);
+						},
+						function (res, waterfallCallback) {
+							that.writeLogEntry('Result: ' + JSON.stringify(res));
+							that.callRpcMethod('GetValueFloat', [res.result], waterfallCallback);
+						}
+					],
+					function(err, res) {
+						that.writeLogEntry('Result: ' + JSON.stringify(res));
+						callback(res.result);
+					}
+				);
+				break;
+			default:
+				return;
+		}
+	},
+	
+	setTargetTemperature: function(value) {
+		
+		var method;
+		var params;
+		
+		switch (this.instance.ModuleInfo.ModuleID) {
+			case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
+				method = 'ZW_ThermostatSetPointSet';
+				params = [this.instanceId, 1 /* Heating */, value];
+				break;
+			default:
+				return;
+		}
+		
+		this.callRpcMethod(method, params);
+	},
+	
+	getCurrentTemperature: function(callback) {
+		var that = this;
+		
+		switch (this.instance.ModuleInfo.ModuleID) {
+			case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
+				if (this.instanceConfig.NodeClasses.indexOf(67) != -1) { // THERMOSTAT_SETPOINT
+					this.getTargetTemperature(callback); // return target temperature for thermostat
+				} else if (this.instanceConfig.NodeClasses.indexOf(49) != -1) { // SENSOR_MULTILEVEL
+					async.waterfall(
+						[
+							function (waterfallCallback) {
+								that.callRpcMethod('IPS_GetObjectIDByIdent', ['SensorType01', that.instanceId], waterfallCallback);
+							},
+							function (res, waterfallCallback) {
+								that.writeLogEntry('Result: ' + JSON.stringify(res));
+								that.callRpcMethod('GetValueFloat', [res.result], waterfallCallback);
+							}
+						],
+						function(err, res) {
+							that.writeLogEntry('Result: ' + JSON.stringify(res));
+							callback(res.result);
+						}
+					);
+				}
+				break;
+			default:
+				return;
+		}
+	},
+	
+	callRpcMethod : function(method, params, callback) {
 		this.writeLogEntry("Calling JSON-RPC method " + method + " with params " + JSON.stringify(params));
 
 		var that = this;
@@ -191,9 +396,14 @@ SymconAccessory.prototype = {
 		function (err, res) {
 			if (err) {
 				that.writeLogEntry("There was a problem calling method " + method);
+				if (callback) callback(res);
 				return;
 			}
-			that.writeLogEntry("Called JSON-RPC method " + method);
+			that.writeLogEntry("Called JSON-RPC method " + method + " with response: " + JSON.stringify(res));
+			if (callback) {
+				that.writeLogEntry('callback...');
+				callback(err, res);
+			}
 		});
 		
 	},
@@ -203,7 +413,7 @@ SymconAccessory.prototype = {
 		
 		return [{
 				cType : types.NAME_CTYPE,
-				onUpdate : null,
+				onUpdate : function(value) { that.writeLogEntry("onUpdate called with value: " + value); },
 				perms : ["pr"],
 				format : "string",
 				initialValue : this.displayName,
@@ -213,7 +423,7 @@ SymconAccessory.prototype = {
 				designedMaxLength : 255
 			}, {
 				cType : types.MANUFACTURER_CTYPE,
-				onUpdate : null,
+				onUpdate : function(value) { that.writeLogEntry("onUpdate called with value: " + value); },
 				perms : ["pr"],
 				format : "string",
 				initialValue : "Symcon",
@@ -223,7 +433,7 @@ SymconAccessory.prototype = {
 				designedMaxLength : 255
 			}, {
 				cType : types.MODEL_CTYPE,
-				onUpdate : null,
+				onUpdate : function(value) { that.writeLogEntry("onUpdate called with value: " + value); },
 				perms : ["pr"],
 				format : "string",
 				initialValue : this.instance.ModuleInfo.ModuleName,
@@ -233,7 +443,7 @@ SymconAccessory.prototype = {
 				designedMaxLength : 255
 			}, {
 				cType : types.SERIAL_NUMBER_CTYPE,
-				onUpdate : null,
+				onUpdate : function(value) { that.writeLogEntry("onUpdate called with value: " + value); },
 				perms : ["pr"],
 				format : "string",
 				initialValue : "A1S2NASF88EW",
@@ -262,11 +472,11 @@ SymconAccessory.prototype = {
 		
 		var cTypes = [{
 				cType : types.NAME_CTYPE,
-				onUpdate : null,
+				onUpdate : function(value) { that.writeLogEntry("onUpdate called with value: " + value); },
 				perms : ["pr"],
 				format : "string",
 				initialValue : this.displayName,
-				supportEvents : true,
+				supportEvents : false,
 				supportBonjour : false,
 				manfDescription : "Name of service",
 				designedMaxLength : 255
@@ -280,10 +490,13 @@ SymconAccessory.prototype = {
 				onUpdate : function (value) {
 					that.setPowerState(value);
 				},
+				onRead : function (callback) {
+					that.getPowerState(callback);
+				},
 				perms : ["pw", "pr", "ev"],
 				format : "bool",
 				initialValue : 0,
-				supportEvents : true,
+				supportEvents : false,
 				supportBonjour : false,
 				manfDescription : "Change the power state",
 				designedMaxLength : 1
@@ -297,10 +510,13 @@ SymconAccessory.prototype = {
 				onUpdate : function (value) {
 					that.setBrightness(value);
 				},
+				onRead : function (callback) {
+					that.getBrightness(callback);
+				},
 				perms : ["pw", "pr", "ev"],
 				format : "int",
 				initialValue : 0,
-				supportEvents : true,
+				supportEvents : false,
 				supportBonjour : false,
 				manfDescription : "Adjust Brightness of Light",
 				designedMinValue : 0,
@@ -309,16 +525,102 @@ SymconAccessory.prototype = {
 				unit : "%"
 			});
 		}
+		
+		if (this.commands.indexOf('GetCurrentHeatingCoolingType') != -1) {
+			this.writeLogEntry('adding control characteristic CURRENTHEATINGCOOLING_CTYPE...');
+			cTypes.push({
+				cType : types.CURRENTHEATINGCOOLING_CTYPE,
+				onUpdate : function(value) { that.writeLogEntry("update current heating/cooling type to: " + value); },
+				onRead : function(callback) { that.writeLogEntry("onRead called for CURRENTHEATINGCOOLING_CTYPE"); },
+				perms : ["pr","ev"],
+				format : "int",
+				initialValue : 1, // Unit is set to heating.
+				supportEvents : false,
+				supportBonjour : false,
+				manfDescription : "Current Mode",
+				designedMaxLength : 1,
+				designedMinValue : 0,
+				designedMaxValue : 2,
+				designedMinStep : 1,    
+			});
+		}
+		
+		if (this.commands.indexOf('SetTargetHeatingCoolingType') != -1) {
+			this.writeLogEntry('adding control characteristic TARGETHEATINGCOOLING_CTYPE...');
+			cTypes.push({
+				cType : types.TARGETHEATINGCOOLING_CTYPE,
+				onUpdate : function(value) { that.writeLogEntry("update target heating/cooling type to: " + value); },
+				onRead : function(callback) { that.writeLogEntry("onRead called for TARGETHEATINGCOOLING_CTYPE"); },
+				perms : ["pw","pr","ev"],
+				format : "int",
+				initialValue : 1, // Unit is set to heating.
+				supportEvents : false,
+				supportBonjour : false,
+				manfDescription : "Target Mode",
+				designedMinValue : 0,
+				designedMaxValue : 3,
+				designedMinStep : 1,
+			});
+		}
+		
+		if (this.commands.indexOf('SetTargetTemperature') != -1) {
+			this.writeLogEntry('adding control characteristic TARGET_TEMPERATURE_CTYPE...');
+			cTypes.push({
+				cType : types.TARGET_TEMPERATURE_CTYPE,
+				onUpdate : function(value) {
+					that.setTargetTemperature(value);
+				},
+				onRead : function(callback) {
+					that.getTargetTemperature(callback);
+				},
+				perms : ["pw","pr","ev"],
+				format : "int",
+				initialValue : 0,
+				supportEvents : false,
+				supportBonjour : false,
+				manfDescription : "Target Temperature",
+				designedMinValue : 0,
+				designedMaxValue : 38,
+				designedMinStep : 1,
+				unit : "celsius"
+			});
+		}
+		
+		if (this.commands.indexOf('GetCurrentTemperature') != -1) {
+			this.writeLogEntry('adding control characteristic CURRENT_TEMPERATURE_CTYPE...');
+			cTypes.push({
+				cType: types.CURRENT_TEMPERATURE_CTYPE,
+				onUpdate: function(value) { that.writeLogEntry("update current temperature to: " + value); },
+				onRead : function(callback) {
+					that.getCurrentTemperature(callback);
+				},
+				perms: ["pr","ev"],
+				format: "int",
+				initialValue: 0,
+				supportEvents: false,
+				supportBonjour: false,
+				manfDescription: "Current Temperature",
+				unit: "celsius"
+			});
+		}
+		
+		if (this.commands.indexOf('GetCurrentTemperature') != -1 
+				|| this.commands.indexOf('SetTargetTemperature') != -1) {
+			this.writeLogEntry('adding control characteristic TEMPERATURE_UNITS_CTYPE...');
+			cTypes.push({
+				cType: types.TEMPERATURE_UNITS_CTYPE,
+				onUpdate: function(value) { that.writeLogEntry("update temperature unit to: " + value); },
+				onRead : function(callback) { that.writeLogEntry("onRead called for TEMPERATURE_UNITS_CTYPE"); },
+				perms: ["pr","ev"],
+				format: "int",
+				initialValue: 0, // 0: celsius
+				supportEvents: false,
+				supportBonjour: false,
+				manfDescription: "Unit",
+			});
+		}
 
 		return cTypes;
-	},
-
-	sType : function () {
-		if (this.commands.indexOf('SetBrightness') != -1) {
-			return types.LIGHTBULB_STYPE;
-		} else {
-			return types.SWITCH_STYPE;
-		}
 	},
 
 	getServices : function () {
@@ -326,7 +628,7 @@ SymconAccessory.prototype = {
 				sType : types.ACCESSORY_INFORMATION_STYPE,
 				characteristics : this.informationCharacteristics(),
 			}, {
-				sType : this.sType(),
+				sType : this.sType,
 				characteristics : this.controlCharacteristics()
 			}
 		];

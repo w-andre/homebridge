@@ -141,6 +141,11 @@ function SymconAccessory(log, rpcClientOptions, instanceId, name, instance, inst
 			}
 			break;
 		case '{24A9D68D-7B98-4D74-9BAE-3645D435A9EF}': // EIB Shutter
+			this.writeLogEntry('adding commands for EIB Shutter...');
+			this.sType = types.GARAGE_DOOR_OPENER_STYPE;
+			this.commands.push('SetTargetDoorState');
+			this.commands.push('GetCurrentDoorState');
+			this.commands.push('GetObstructionDetected');
 			break;
 		case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
 			if (this.instanceConfig.NodeClasses.indexOf(67) != -1) { // THERMOSTAT_SETPOINT

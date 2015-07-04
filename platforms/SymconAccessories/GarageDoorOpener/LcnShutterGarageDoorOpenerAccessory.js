@@ -10,6 +10,7 @@ LcnShutterGarageDoorOpenerAccessory.prototype = Object.create(symconGenericGarag
 
 	setTargetDoorState: {
 		value: function(value) {
+			var openDoor = value === 0; // value '0' --> open, value '1' --> close
 			var method = openDoor ? "LCN_ShutterMoveUp" : "LCN_ShutterMoveDown";
 			var params = [this.instanceId];
 			this.callRpcMethod(method, params);

@@ -10,6 +10,7 @@ EibShutterGarageDoorOpenerAccessory.prototype = Object.create(symconGenericGarag
 
 	setTargetDoorState: {
 		value: function(value) {
+			var openDoor = value === 0; // value '0' --> open, value '1' --> close
 			var method = "EIB_DriveMove";
 			var params = [this.instanceId, !openDoor];
 			this.callRpcMethod(method, params);

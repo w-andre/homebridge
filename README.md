@@ -11,7 +11,7 @@ Since Siri supports devices added through HomeKit, this means that with HomeBrid
  * _Siri, turn off the Speakers._ ([Sonos](http://www.sonos.com))
  * _Siri, turn on the Dehumidifier._ ([WeMo](http://www.belkin.com/us/Products/home-automation/c/wemo-home-automation/))
  * _Siri, turn on Away Mode._ ([Xfinity Home](http://www.comcast.com/home-security.html))
- * _Siri, turn on the living room lights._ ([Wink](http://www.wink.com), [SmartThings](http://www.smartthings.com), [X10](http://github.com/edc1591/rest-mochad))
+ * _Siri, turn on the living room lights._ ([Wink](http://www.wink.com), [SmartThings](http://www.smartthings.com), [X10](http://github.com/edc1591/rest-mochad), [Philips Hue](http://meethue.com))
 
 If you would like to support any other devices, please write a shim and create a pull request and I'd be happy to add it to this official list.
 
@@ -53,17 +53,13 @@ Additionally, the shims I've created implement the bare minimum of HomeKit neede
 
 # Getting Started
 
-OK, if you're still excited enough about ordering Siri to make your coffee (which, who wouldn't be!) then here's how to set things up. First, clone this repo and also init submodules to grab the [HAP-NodeJS](https://github.com/KhaosT/HAP-NodeJS) project which isn't in npm. You'll also need to run `npm install` on HAP-NodeJS:
+OK, if you're still excited enough about ordering Siri to make your coffee (which, who wouldn't be!) then here's how to set things up. First, clone this repo:
 
     $ git clone https://github.com/nfarina/homebridge.git
     $ cd homebridge
-    $ git submodule init
-    $ git submodule update
-    $ npm install
-    $ cd lib/HAP-NodeJS
     $ npm install
 
-**Node**: You'll need to have NodeJS version 0.12.x or better installed for `HAP-NodeJS` to load.
+**Node**: You'll need to have NodeJS version 0.12.x or better installed for required submodule `HAP-NodeJS` to load.
 
 Now you should be able to run the homebridge server:
 

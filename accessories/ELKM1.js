@@ -1,44 +1,44 @@
 var types = require("HAP-NodeJS/accessories/types.js");
-var carwings = require("carwingsjs");
+var elkington = require("elkington");
 
-function CarwingsAccessory(log, config) {
+function ElkM1Accessory(log, config) {
   this.log = log;
   this.name = config["name"];
-  this.username = config["username"];
-  this.password = config["password"];
+  this.zone = config["zone"];
+  this.host = config["host"];
+  this.port = config["port"];
+  this.pin = config["pin"];
+  this.arm = config["arm"];
 }
 
-CarwingsAccessory.prototype = {
-
-  setPowerState: function(powerOn) {
+ElkM1Accessory.prototype = {
+  setPowerState: function(alarmOn) {
     var that = this;
 
-    carwings.login(this.username, this.password, function(err, result) {
-      if (!err) {
-        that.vin = result.vin;
-        that.log("Got VIN: " + that.vin);
+    if (!alarmOn)
+    {
+        return;
+    }
 
-        if (powerOn) {
-          carwings.startClimateControl(that.vin, null, function(err, result) {
-            if (!err)
-              that.log("Started climate control.");
-            else
-              that.log("Error starting climate control: " + err);
-          });
-        }
-        else {
-          carwings.stopClimateControl(that.vin, function(err, result) {
-            if (!err)
-              that.log("Stopped climate control.");
-            else
-              that.log("Error stopping climate control: " + err);
-          });
-        }
-      }
-      else {
-        that.log("Error logging in: " + err);
-      }
+    var elk = elkington.createConnection({
+        port: that.port,
+        host: that.host,
     });
+
+    switch (that.arm)
+    {
+        case 'Away':
+            elk.armAway({area: that.zone, code: that.pin});
+            break;
+        case 'Stay':
+            elk.armStay({area: that.zone, code: that.pin});
+            break;
+        case 'Night':
+            elk.armNightInstant({area: that.zone, code: that.pin});
+            break;
+        default:
+            break;
+    }
   },
 
   getServices: function() {
@@ -60,7 +60,7 @@ CarwingsAccessory.prototype = {
         onUpdate: null,
         perms: ["pr"],
         format: "string",
-        initialValue: "Nissan",
+        initialValue: "Elk",
         supportEvents: false,
         supportBonjour: false,
         manfDescription: "Manufacturer",
@@ -70,7 +70,7 @@ CarwingsAccessory.prototype = {
         onUpdate: null,
         perms: ["pr"],
         format: "string",
-        initialValue: "Rev-1",
+        initialValue: "M1",
         supportEvents: false,
         supportBonjour: false,
         manfDescription: "Model",
@@ -116,11 +116,11 @@ CarwingsAccessory.prototype = {
         initialValue: false,
         supportEvents: false,
         supportBonjour: false,
-        manfDescription: "Change the power state of the car",
+        manfDescription: "Alarm the Zone",
         designedMaxLength: 1
       }]
     }];
   }
 };
 
-module.exports.accessory = CarwingsAccessory;
+module.exports.accessory = ElkM1Accessory;

@@ -14,6 +14,7 @@ SymconPlatform.prototype = {
 
 	callRpcMethod : function(method, params, callback) {
 		var that = this;
+		//this.log("calling method '" + method + "' with params " + JSON.stringify(params) + "...");
 		this.client.call(
 			{"jsonrpc" : "2.0", "method" : method, "params" : params, "id" : 0},
 			function (err, res) {
@@ -25,12 +26,14 @@ SymconPlatform.prototype = {
 					that.log("[method: " + method + ", params: " + JSON.stringify(params) + "] Error: " + JSON.stringify(res.error));
 					if (callback) callback(res);
 					return;
+				} else {
+					//that.log("Result: " + JSON.stringify(res));
 				}
 				if (callback) callback(err, res);
 			}
 		);
 	},
-
+	
 	accessories : function (callback) {
 		this.log("Fetching Symcon instances...");
 
@@ -43,10 +46,11 @@ SymconPlatform.prototype = {
 					that.callRpcMethod("IPS_GetInstanceList", [], waterfallCallback);
 				},
 				function (res, waterfallCallback) {
-					async.each(
+					
+					async.eachSeries(
 						res.result,
 						function (instanceId, eachCallback) {
-							async.parallel(
+							async.series(
 								[
 									function (parallelCallback) {
 										that.callRpcMethod("IPS_GetName", [instanceId], parallelCallback);
@@ -82,6 +86,7 @@ SymconPlatform.prototype = {
 							);
 						},
 						function (err) {
+							that.log("waterfallCallback");
 							waterfallCallback(null);
 						}
 					);
@@ -92,6 +97,9 @@ SymconPlatform.prototype = {
 				callback(foundAccessories);
 			}
 		);
+		
+		
+		that.log("end of method");
 	},
 
 	createSpecificAccessory : function(log, rpcClientOptions, instanceId, name, instance, instanceConfig) {
@@ -103,6 +111,7 @@ SymconPlatform.prototype = {
 					case 2: // relay
 						return new symconAccessories.Switch.LcnUnitSwitchAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
 				}
+				break;
 			case '{C81E019F-6341-4748-8644-1C29D99B813E}': // LCN Shutter
 				return new symconAccessories.GarageDoorOpener.LcnShutterGarageDoorOpenerAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
 			case '{D62B95D3-0C5E-406E-B1D9-8D102E50F64B}': // EIB Group
@@ -110,6 +119,7 @@ SymconPlatform.prototype = {
 					case 'Switch':
 						return new symconAccessories.Switch.EibSwitchAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
 				}
+				break;
 			case '{24A9D68D-7B98-4D74-9BAE-3645D435A9EF}': // EIB Shutter
 				return new symconAccessories.GarageDoorOpener.EibShutterGarageDoorOpenerAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
 			case '{101352E1-88C7-4F16-998B-E20D50779AF6}': // Z-Wave Module
@@ -120,6 +130,7 @@ SymconPlatform.prototype = {
 				} else if (instanceConfig.NodeClasses.indexOf(37) != -1) { // SWITCH_BINARY
 					return new symconAccessories.Switch.ZWaveSwitchAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
 				}
+				break;
 			case '{EE4A81C6-5C90-4DB7-AD2F-F6BBD521412E}': // HomeMatic Device
 				// todo: return correct type (switch, light bulb, ...) depending on configuration
 				return new symconAccessories.Switch.HomeMaticSwitchAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);

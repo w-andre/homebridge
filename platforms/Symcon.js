@@ -1,5 +1,5 @@
 // IP-Symcon JSON-RPC API
-var types = require("../lib/HAP-NodeJS/accessories/types.js");
+var types = require("HAP-NodeJS/accessories/types.js");
 var rpc = require("node-json-rpc");
 var async = require("async");
 var symconAccessories = require('./SymconAccessories');

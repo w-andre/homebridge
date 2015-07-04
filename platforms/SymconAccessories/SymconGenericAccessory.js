@@ -1,4 +1,4 @@
-var types = require("../../lib/HAP-NodeJS/accessories/types.js");
+var types = require("HAP-NodeJS/accessories/types.js");
 var rpc = require("node-json-rpc");
 
 function SymconGenericAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig) {

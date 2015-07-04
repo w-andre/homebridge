@@ -1,4 +1,4 @@
-var types = require("../../../lib/HAP-NodeJS/accessories/types.js");
+var types = require("HAP-NodeJS/accessories/types.js");
 var symconGeneric = require('../SymconGenericAccessory.js');
 
 function SymconGenericLightBulbAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig) {

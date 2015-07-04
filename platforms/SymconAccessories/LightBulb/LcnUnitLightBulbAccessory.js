@@ -1,4 +1,3 @@
-var types = require("../../../lib/HAP-NodeJS/accessories/types.js");
 var async = require("async");
 var symconGenericLightBulb = require('./SymconGenericLightBulbAccessory.js');
 

@@ -122,7 +122,7 @@ SymconPlatform.prototype = {
 				}
 			case '{EE4A81C6-5C90-4DB7-AD2F-F6BBD521412E}': // HomeMatic Device
 				// todo: return correct type (switch, light bulb, ...) depending on configuration
-				return return new symconAccessories.Switch.HomeMaticSwitchAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
+				return new symconAccessories.Switch.HomeMaticSwitchAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
 			default:
 				break;
 		}

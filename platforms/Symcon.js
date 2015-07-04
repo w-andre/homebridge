@@ -46,7 +46,6 @@ SymconPlatform.prototype = {
 					that.callRpcMethod("IPS_GetInstanceList", [], waterfallCallback);
 				},
 				function (res, waterfallCallback) {
-					
 					async.eachSeries(
 						res.result,
 						function (instanceId, eachCallback) {
@@ -86,7 +85,6 @@ SymconPlatform.prototype = {
 							);
 						},
 						function (err) {
-							that.log("waterfallCallback");
 							waterfallCallback(null);
 						}
 					);
@@ -97,9 +95,6 @@ SymconPlatform.prototype = {
 				callback(foundAccessories);
 			}
 		);
-		
-		
-		that.log("end of method");
 	},
 
 	createSpecificAccessory : function(log, rpcClientOptions, instanceId, name, instance, instanceConfig) {

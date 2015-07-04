@@ -20,6 +20,7 @@
     "wemo": "0.2.x",
     "wink-js": "0.0.5",
     "node-json-rpc": "",
-    "async": ""
+    "async": "",
+    "fs": ""
   }
 }

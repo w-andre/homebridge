@@ -54,7 +54,7 @@ function loadAccessories() {
         var services = accessory.getServices();
 
         // Create the HAP server for this accessory
-        createHAPServer(name, services);
+        createHAPServer(name, services, accessory.transportCategory);
     }
 }
 
@@ -89,7 +89,7 @@ function loadPlatforms() {
                 // hooks in and out of HomeKit for the HAP-NodeJS server.
                 var services = accessory.getServices();
                 // Create the HAP server for this accessory
-                createHAPServer(accessory.name, services, accessory.displayName);
+                createHAPServer(accessory.name, services, accessory.transportCategory, accessory.displayName);
             }
             accessories.push.apply(accessories, foundAccessories);
         })
@@ -113,7 +113,7 @@ var accessoryServers = [];
 var accessoryControllers = [];
 var usernames = {};
 
-function createHAPServer(name, services, displayName) {
+function createHAPServer(name, services, transportCategory, displayName) {
     var accessoryController = new accessoryController_Factor.AccessoryController();
 
     //loop through services
@@ -162,14 +162,11 @@ function createHAPServer(name, services, displayName) {
 
     // hardcode the PIN to something random (same PIN as HAP-NodeJS sample accessories)
     var pincode = "123-45-123";//"031-45-154";
-	
-	if (displayName === undefined)
-		displayName = name;
-	
-	//displayName = displayName.substring(0, 50);
-	console.log("Display name: " + displayName);
-	
-    var accessory = new accessory_Factor.Accessory(displayName, username, storage, parseInt(nextPort), pincode, accessoryController);
+
+    if (displayName === undefined)
+        displayName = name;
+
+    var accessory = new accessory_Factor.Accessory(displayName, username, storage, parseInt(nextPort), pincode, accessoryController, transportCategory);
     accessoryServers[nextServer] = accessory;
     accessoryControllers[nextServer] = accessoryController;
     accessory.publishAccessory();

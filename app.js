@@ -80,18 +80,8 @@ function loadPlatforms() {
 
         // query for devices
         platform.accessories(function(foundAccessories){
-            // loop through accessories adding them to the list and registering them
-            for (var i = 0; i < foundAccessories.length; i++) {
-                accessory = foundAccessories[i]
-                accessories.push(accessory);
-                log("Initializing device with name " + accessory.name + "...")
-                // Extract the raw "services" for this accessory which is a big array of objects describing the various
-                // hooks in and out of HomeKit for the HAP-NodeJS server.
-                var services = accessory.getServices();
-                // Create the HAP server for this accessory
-                createHAPServer(accessory.name, services, accessory.transportCategory, accessory.displayName);
-            }
-            accessories.push.apply(accessories, foundAccessories);
+			// w-andre : create only one HAP server (bridge controller) for a platform
+			createPlatformHAPServer(platformName, foundAccessories, log);
         })
     }
 }
@@ -105,6 +95,7 @@ var accessory_Factor = new require("HAP-NodeJS/Accessory.js");
 var accessoryController_Factor = new require("HAP-NodeJS/AccessoryController.js");
 var service_Factor = new require("HAP-NodeJS/Service.js");
 var characteristic_Factor = new require("HAP-NodeJS/Characteristic.js");
+var bridge_Factor = new require("HAP-NodeJS/BridgedAccessoryController.js"); // w-andre
 
 // Each accessory has its own little server. We'll need to allocate some ports for these servers
 var nextPort = 51826;
@@ -112,6 +103,74 @@ var nextServer = 0;
 var accessoryServers = [];
 var accessoryControllers = [];
 var usernames = {};
+
+function createPlatformHAPServer(platformName, accessories, log) {
+	log("Initializing platform bridge controller...");
+	var bridgeController = new bridge_Factor.BridgedAccessoryController();
+	
+	//loop through accessories
+	for (var i = 0; i < accessories.length; i++) {
+		var accessory = accessories[i];
+		log("Initializing device with name " + accessory.name + "...");
+		var accessoryController = new accessoryController_Factor.AccessoryController();
+		
+		var services = accessory.getServices();
+		//loop through services
+		for (var j = 0; j < services.length; j++) {
+			var service = new service_Factor.Service(services[j].sType);
+
+			//loop through characteristics
+			for (var k = 0; k < services[j].characteristics.length; k++) {
+				var options = {
+					onRead: services[j].characteristics[k].onRead,
+					type: services[j].characteristics[k].cType,
+					perms: services[j].characteristics[k].perms,
+					format: services[j].characteristics[k].format,
+					initialValue: services[j].characteristics[k].initialValue,
+					supportEvents: services[j].characteristics[k].supportEvents,
+					supportBonjour: services[j].characteristics[k].supportBonjour,
+					manfDescription: services[j].characteristics[k].manfDescription,
+					designedMaxLength: services[j].characteristics[k].designedMaxLength,
+					designedMinValue: services[j].characteristics[k].designedMinValue,
+					designedMaxValue: services[j].characteristics[k].designedMaxValue,
+					designedMinStep: services[j].characteristics[k].designedMinStep,
+					unit: services[j].characteristics[k].unit,
+					onRegister: services[j].characteristics[k].onRegister
+					//locals: locals //snowdd1
+				};
+				
+				var characteristic = new characteristic_Factor.Characteristic(options, services[j].characteristics[k].onUpdate);
+				service.addCharacteristic(characteristic);
+			};
+			accessoryController.addService(service);
+		};
+		bridgeController.addAccessory(accessoryController);
+	};
+	
+	// create a unique "username" for this platform based on the default display name
+	var username = createUsername(platformName);
+
+	if (usernames[username]) {
+		console.log("Cannot create another accessory with the same name '" + platformName + "'. The 'name' property must be unique for each accessory.");
+		return;
+	}
+
+	// remember that we used this name already
+	usernames[username] = platformName;
+
+	// increment ports for each accessory
+	nextPort = nextPort + (nextServer*2);
+
+	// hardcode the PIN to something random
+	var pincode = "123-45-123";
+
+	var accessory = new accessory_Factor.Accessory(platformName, username, storage, parseInt(nextPort), pincode, bridgeController);
+	accessoryServers[nextServer] = accessory;
+	//accessoryControllers[nextServer] = accessoryController;
+	accessory.publishAccessory();
+
+	nextServer++;
+}
 
 function createHAPServer(name, services, transportCategory, displayName) {
     var accessoryController = new accessoryController_Factor.AccessoryController();

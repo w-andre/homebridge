@@ -6,7 +6,7 @@ function SymconGenericAccessory(log, rpcClientOptions, instanceId, name, instanc
 	this.rpcClientOptions = rpcClientOptions;
 	this.instanceId = instanceId;
 	this.name = instanceId.toString();
-	this.displayName = name + " [" + instanceId + "]";
+	this.displayName = name;
 	this.instance = instance;
 	this.instanceConfig = instanceConfig;
 }
@@ -78,7 +78,7 @@ SymconGenericAccessory.prototype = {
 				onUpdate : function(value) { that.writeLogEntry("onUpdate called with value: " + value); },
 				perms : ["pr"],
 				format : "string",
-				initialValue : "A1S2NASF88EW",
+				initialValue : "ID" + this.instanceId,
 				supportEvents : false,
 				supportBonjour : false,
 				manfDescription : "SN",

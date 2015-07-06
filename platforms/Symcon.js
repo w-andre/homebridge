@@ -1,4 +1,5 @@
 // IP-Symcon JSON-RPC API
+// remove not paired accessories from persist dir with: grep -l ':false' * | xargs rm
 var types = require("HAP-NodeJS/accessories/types.js");
 var rpc = require("node-json-rpc");
 var async = require("async");
@@ -39,6 +40,9 @@ SymconPlatform.prototype = {
 
 		var that = this;
 		var foundAccessories = [];
+		
+		// add bridge info accessory
+		foundAccessories.push(new symconAccessories.SymconBridgeInfo(this.log, this.options.name));
 
 		async.waterfall(
 			[

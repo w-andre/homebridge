@@ -111,7 +111,7 @@ function createPlatformHAPServer(platformName, accessories, log) {
 	//loop through accessories
 	for (var i = 0; i < accessories.length; i++) {
 		var accessory = accessories[i];
-		log("Initializing device with name " + accessory.name + "...");
+		log("Initializing device with name " + accessory.displayName + " ("+  accessory.name + ")...");
 		var accessoryController = new accessoryController_Factor.AccessoryController();
 		
 		var services = accessory.getServices();

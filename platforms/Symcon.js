@@ -103,6 +103,22 @@ SymconPlatform.prototype = {
 
 	createSpecificAccessory : function(log, rpcClientOptions, instanceId, name, instance, instanceConfig) {
 		switch (instance.ModuleInfo.ModuleID) {
+			case '{E75002FE-58B7-4711-9DE6-BE1D3F089A32}': // HomeKit Accessory
+				switch (instanceConfig.DeviceType) {
+					case 0: // switch
+						return new symconAccessories.Switch.HomeKitAccessorySwitchAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
+					case 1: // light bulb
+						return new symconAccessories.LightBulb.HomeKitAccessoryLightBulbAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
+					case 2: // garage door opener
+						return new symconAccessories.GarageDoorOpener.HomeKitAccessoryGarageDoorOpenerAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
+					case 3: // thermostat
+						return new symconAccessories.Thermostat.HomeKitAccessoryThermostatAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
+					case 4: // lock mechanism
+						return new symconAccessories.LockMechanism.HomeKitAccessoryLockMechanismAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
+					case 5: // window covering
+						return new symconAccessories.WindowCovering.HomeKitAccessoryWindowCoveringAccessory(log, rpcClientOptions, instanceId, name, instance, instanceConfig);
+				}
+				break;
 			case '{2D871359-14D8-493F-9B01-26432E3A710F}': // LCN Unit
 				switch (instanceConfig.Unit) {
 					case 0: // output
